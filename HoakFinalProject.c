@@ -30,7 +30,6 @@ void deallocate_dynamic_matrix(unsigned char **matrix, int row);
 char *originalFile;	//name of maze picture file
 
 int p, my_rank;		//total number of processors, personal processor number
-int c;				//integers to track loops, command line
 
 int maze_rows, maze_cols; //dimensions of maze
 int start_c, start_r;		 //starting coordinates
@@ -69,8 +68,8 @@ main(int argc, char* argv[]) {
 	//set maze dimentions
 	// (Note: there is a max size in order to view the PGM,
 	// 		but program runs for all sizes)
-	maze_cols = 200;
-	maze_rows = 200;
+	maze_cols = 10;
+	maze_rows = 10;
  
 	//set start and end
 	start_c = 1;
@@ -86,18 +85,44 @@ main(int argc, char* argv[]) {
 	// Allocate maze in unsigned chars
 	unsigned char **total_maze = allocate_dynamic_matrix(maze_rows, maze_cols);
 	
+	
+	//add border to maze
+	int r, c, spacer; //track row and col, and what to skip between rows
+	
+	for(r = 0; r < maze_rows; r++){
+		
+		//get whole top and bottom, but only sides of other rows
+		if(r == 0 || r == maze_rows-1){
+			spacer == 0;
+		}
+		else{
+			spacer = maze_cols - 2;
+		}
+		
+		//loop across cols
+		for(c = 0; c < maze_cols; c += 1 + spacer){
+			
+			//check not to replace start and end locations - leave them spaces
+			if((r != start_r && c != start_c) || (r != end_r && c != end_c)){
+				total_maze[r][c] += 1;
+			}
+		}
+	}
+	
+	
 	//print blank maze to command line
-	//printMatrix(total_maze);
+	printMatrix(total_maze);
 	
 	//only root process prints full maze - done
+	
 	//*
 	  
 	if(my_rank == 0){
 		char *outputName = "testPicture.PGM";
 		writePGM( outputName, total_maze );
 	}
-	 
-	//* */
+	
+	//*/
 	
 	//Outline Code
 	
@@ -109,10 +134,6 @@ main(int argc, char* argv[]) {
 	//Process 0 prints the maze to a PGM
 	
 	//Processors then find at least one way through the maze
-	
-	
-	
-	
 	
 	
 	MPI_Finalize();
