@@ -13,14 +13,18 @@
 #include "mpi.h"	//verson 2.0.0
 
 //	Functions
+
+//Read and Write PGM
 unsigned char **readPGM(const char *file_name, unsigned char **total_maze);
-
-unsigned char **allocate_dynamic_matrix(int row, int col);
-
-
 void writePGM( char *filename, unsigned char **total_maze);
-void printMatrix(unsigned char **total_maze);
 FILE *pgmFile; 	//initial world file
+
+//print matrix to command line (for small maze debugging)
+void printMatrix(unsigned char **total_maze);
+
+//Memory allocation and deallocation
+unsigned char **allocate_dynamic_matrix(int row, int col);
+void deallocate_dynamic_matrix(unsigned char **matrix, int row);
 
 //	Global Variables
 char *originalFile;	//name of maze picture file
@@ -28,7 +32,7 @@ char *originalFile;	//name of maze picture file
 int p, my_rank;		//total number of processors, personal processor number
 int c;				//integers to track loops, command line
 
-int maze_width, maze_length; //dimensions of maze
+int maze_rows, maze_cols; //dimensions of maze
 int start_c, start_r;		 //starting coordinates
 int end_c, end_r; 			 //ending coordinates
 
@@ -63,8 +67,10 @@ main(int argc, char* argv[]) {
 	// the only blank spaces in the outer frame
  
 	//set maze dimentions
-	maze_width = 10;
-	maze_length = 10;
+	// (Note: there is a max size in order to view the PGM,
+	// 		but program runs for all sizes)
+	maze_cols = 200;
+	maze_rows = 200;
  
 	//set start and end
 	start_c = 1;
@@ -78,21 +84,20 @@ main(int argc, char* argv[]) {
 	}
  	
 	// Allocate maze in unsigned chars
-	unsigned char **total_maze = allocate_dynamic_matrix(maze_length, maze_width);
+	unsigned char **total_maze = allocate_dynamic_matrix(maze_rows, maze_cols);
 	
 	//print blank maze to command line
-	printMatrix(total_maze);
-	
+	//printMatrix(total_maze);
 	
 	//only root process prints full maze - done
-	/*
+	//*
 	  
 	if(my_rank == 0){
 		char *outputName = "testPicture.PGM";
 		writePGM( outputName, total_maze );
 	}
 	 
-	* */
+	//* */
 	
 	//Outline Code
 	
@@ -113,7 +118,7 @@ main(int argc, char* argv[]) {
 	MPI_Finalize();
 	
 	// Free Memory
-	free(total_maze);
+	deallocate_dynamic_matrix(total_maze, maze_rows);
 }
 
 // write the PGM
@@ -134,12 +139,12 @@ void writePGM( char *filename, unsigned char **total_maze)
 	
 	//write header
     fprintf(pgmFile, "P2 \n");		//a P3 filetype
-    fprintf(pgmFile, "%d %d \n", maze_length, maze_width);
+    fprintf(pgmFile, "%d %d \n", maze_rows, maze_cols);
     fprintf(pgmFile, "%d \n", 255);	//max grey
     
     //loop to print entire maze
-	for ( i = 0; i < maze_width; ++i ) {
-		for ( j = 0; j < maze_length; ++j ) {
+	for ( i = 0; i < maze_rows; ++i ) {
+		for ( j = 0; j < maze_cols; ++j ) {
 				
 				//get value to insert
 				place = total_maze[i][j];
@@ -164,8 +169,8 @@ void writePGM( char *filename, unsigned char **total_maze)
 void printMatrix(unsigned char **total_maze){
 	int i, j;
 	
-	for (i = 0; i < maze_width; i++){
-		for (j = 0; j < maze_length; j++){
+	for (i = 0; i < maze_rows; i++){
+		for (j = 0; j < maze_cols; j++){
 			printf("%u ", total_maze[i][j]);
 		}
 		printf("\n");
@@ -189,3 +194,16 @@ unsigned char **allocate_dynamic_matrix(int row, int col)
     return ret_val;
 }
 
+//free memory
+void deallocate_dynamic_matrix(unsigned char **matrix, int row)
+{
+	int i; // for loop
+	
+	//free each col
+    for (i = 0; i < row; ++i){
+        free(matrix[i]);
+	}
+	
+	//free whole thing
+    free(matrix);
+}
