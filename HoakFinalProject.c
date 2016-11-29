@@ -14,7 +14,12 @@
 
 //	Functions
 unsigned char **readPGM(const char *file_name, unsigned char **total_maze);
+
+unsigned char **allocate_dynamic_matrix(int row, int col);
+
+
 void writePGM( char *filename, unsigned char **total_maze);
+void printMatrix(unsigned char **total_maze);
 FILE *pgmFile; 	//initial world file
 
 //	Global Variables
@@ -24,9 +29,10 @@ int p, my_rank;		//total number of processors, personal processor number
 int c;				//integers to track loops, command line
 
 int maze_width, maze_length; //dimensions of maze
-int start_x, start_y;		 //starting coordinates
-int end_x, end_y; 			 //ending coordinates
+int start_c, start_r;		 //starting coordinates
+int end_c, end_r; 			 //ending coordinates
 
+int local_cols, local_rows;	 //local length and width of processor area
 
 /////////////////////////////
 //	Project parallelizes a maze generator
@@ -61,32 +67,32 @@ main(int argc, char* argv[]) {
 	maze_length = 10;
  
 	//set start and end
-	start_x = 1;
-	start_y = 0;
-	end_x	= 8;
-	end_y	= 9;
+	start_c = 1;
+	start_r = 0;
+	end_c	= 8;
+	end_r	= 9;
  
 	//print out start and end
 	if(my_rank == 0){
-		printf("Start at (%d, %d) and end at (%d, %d)\n", start_x, start_y, end_x, end_y);
+		printf("Start at (%d, %d) and end at (%d, %d)\n", start_c, start_r, end_c, end_r);
 	}
  	
-	// Allocate maze in chars
-	unsigned char *total_maze_s1 = (unsigned char *)calloc(maze_width*maze_length, sizeof(unsigned char));
-	unsigned char **total_maze = (unsigned char **)malloc(sizeof(unsigned char *)*maze_width);
-
+	// Allocate maze in unsigned chars
+	unsigned char **total_maze = allocate_dynamic_matrix(maze_length, maze_width);
 	
-	//fill local with zeros
-	for(int k = 0; k<maze_length; k++){
-		total_maze[k] = &(total_maze_s1[k*maze_length]); //local_cols from col***
-	}
+	//print blank maze to command line
+	printMatrix(total_maze);
 	
 	
-	//only root process prints full maze
+	//only root process prints full maze - done
+	/*
+	  
 	if(my_rank == 0){
 		char *outputName = "testPicture.PGM";
 		writePGM( outputName, total_maze );
 	}
+	 
+	* */
 	
 	//Outline Code
 	
@@ -108,10 +114,9 @@ main(int argc, char* argv[]) {
 	
 	// Free Memory
 	free(total_maze);
-	free(total_maze_s1);
 }
 
-//write the PGM
+// write the PGM
 void writePGM( char *filename, unsigned char **total_maze)
 {
 	//declare local variables
@@ -156,43 +161,31 @@ void writePGM( char *filename, unsigned char **total_maze)
 
 }
 
-// reading the PGM file
-/*
-unsigned char readPGM(const char *file_name, unsigned char **total_maze)
-{
-    pgmFile = fopen(file_name, "rb");
-    if (pgmFile == NULL) {
-        perror("File is NULL");
-        exit(EXIT_FAILURE);
-    }
- 
-    fgets(version, sizeof(version), pgmFile);
-    
-    if (strcmp(version, "P2")) {
-        fprintf(stderr, "Wrong file type!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fscanf(pgmFile, "%d", &data->col); 
-    fscanf(pgmFile, "%d", &data->row);
-    fscanf(pgmFile, "%d", &data->max_gray);
-    fgetc(pgmFile);
- 
-    data->matrix = allocate_dynamic_matrix(data->row, data->col);
-    
-
-    for (i = 0; i < data->row; ++i){
-		for (j = 0; j < data->col; ++j) {
-			//lo = fgetc(pgmFile);
-				fscanf(pgmFile, "%d", &lo); //scan directly...
-                if( lo >= 128) { data->matrix[i][j] = 0; }	//white is dead
-                else { data->matrix[i][j] = 1; }			//black means alive
-                //printf(" %d", lo);
+void printMatrix(unsigned char **total_maze){
+	int i, j;
+	
+	for (i = 0; i < maze_width; i++){
+		for (j = 0; j < maze_length; j++){
+			printf("%u ", total_maze[i][j]);
 		}
-        // printf("\n");
+		printf("\n");
 	}
-    fclose(pgmFile);
-    return data;
 }
 
-*/
+// allocate memory for matrix
+unsigned char **allocate_dynamic_matrix(int row, int col)
+{
+	int i; //for loop
+	
+	//allocate the whole size based on dimensions
+    unsigned char **ret_val = (unsigned char **)malloc(sizeof(unsigned char *)*row);
+	
+	//fill with allocated cols set to zero
+    for (i = 0; i < row; i++) {
+        ret_val[i] = (unsigned char *)calloc(col, sizeof(unsigned char));
+    }
+    
+    // return double pointer to (x,y) matrix maze base
+    return ret_val;
+}
+
