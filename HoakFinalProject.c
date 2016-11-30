@@ -7,6 +7,7 @@
 //	Include packages
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <stdlib.h>
 #include <math.h>
 #include <unistd.h>
@@ -23,19 +24,22 @@ FILE *pgmFile; 	//initial world file
 void printMatrix(unsigned char **total_maze);
 
 //Memory allocation and deallocation
-unsigned char **allocate_dynamic_matrix(int row, int col);
+unsigned char **allocate_maze(int row, int col);
 void deallocate_dynamic_matrix(unsigned char **matrix, int row);
+
+int **allocate_stack(int num);
+void deallocate_stack(int **matrix, int row);
 
 //	Global Variables
 char *originalFile;	//name of maze picture file
 
 int p, my_rank;		//total number of processors, personal processor number
 
-int maze_rows, maze_cols; //dimensions of maze
-int start_c, start_r;		 //starting coordinates
-int end_c, end_r; 			 //ending coordinates
+int maze_rows, maze_cols; 	//dimensions of maze
+int start_c, start_r;		//starting coordinates
+int end_c, end_r; 			//ending coordinates
 
-int local_cols, local_rows;	 //local length and width of processor area
+int local_cols, local_rows;	//local length and width of processor area
 
 /////////////////////////////
 //	Project parallelizes a maze generator
@@ -73,7 +77,7 @@ main(int argc, char* argv[]) {
  
 	//set start and end
 	start_c = 1;
-	start_r = 0;
+	start_r = 1;
 	end_c	= 8;
 	end_r	= 9;
  
@@ -83,31 +87,140 @@ main(int argc, char* argv[]) {
 	}
  	
 	// Allocate maze in unsigned chars
-	unsigned char **total_maze = allocate_dynamic_matrix(maze_rows, maze_cols);
+	unsigned char **total_maze = allocate_maze(maze_rows, maze_cols);
+	
+	//allocate "explored" stack
+	int **explored = allocate_stack(maze_cols*maze_rows);
+	int exp = 0; //number of explored squares
+	
+	//allocate "walls" stack
+	int **foundwalls = allocate_stack(maze_cols*maze_rows);
+	int walls = -1; //index number for explored walls
 	
 	
-	//add border to maze
-	int r, c, spacer; //track row and col, and what to skip between rows
+	/////////////////////
+	//make maze in array of walls - 0 = wall
+	/////////////////////
+
 	
-	for(r = 0; r < maze_rows; r++){
+	//initial condition
+	
+	int row, col; 	//track current row and col values
+	row = start_r;
+	col = start_c;
+	
+	int n, s, e, w; //bool values for if this direction can be visited
+	int avail = 1;	//boolean for available 
+	int gone;		//track previous explored so keep walls
+	int r; 			//random variable
+	int tr = 1; 	//track iterations
+	
+	srand(time(NULL)); //make random seed out of time for future random variables
+	
+	
+	//do the following while there are still places to explore
+	while(avail > 0){
+	//for(int tr = 0; tr < 9; tr++){
+		//set current to blank
+		total_maze[row][col] += 1;
 		
-		//get whole top and bottom, but only sides of other rows
-		if(r == 0 || r == maze_rows-1){
-			spacer == 0;
+		//add current cell to explored list
+		explored[exp][0] = row;
+		explored[exp][1] = col;
+		exp++;
+		
+		//set all directions initially to true, as they are most of the time
+		n = 1;
+		s = 2;
+		e = 3;
+		w = 4;
+		
+		//get acceptable neighbors
+	
+		//check north - false if against top edge or north is on path
+		if(row <= 1 || total_maze[row-1][col] > 0){
+			n = 0;
 		}
 		else{
-			spacer = maze_cols - 2;
-		}
-		
-		//loop across cols
-		for(c = 0; c < maze_cols; c += 1 + spacer){
+			//check walls to see if bordering known wall
+			for( gone = 0; gone < walls; gone++){
+				if(foundwalls[gone][0] == row-1 && (foundwalls[gone][1] == col-1 || foundwalls[gone][1] == col+1)){
+
+					
+					n = 0;	
+				}
+			}
 			
-			//check not to replace start and end locations - leave them spaces
-			if((r != start_r && c != start_c) || (r != end_r && c != end_c)){
-				total_maze[r][c] += 1;
+			//see if condition still not false, then add wall if needed
+			if(n != 0){
+				//check diagonals to make sure is really valed, to keep walls intact
+				for( gone = 0; gone < exp; gone++){
+					if(explored[gone][0] == row-1 && (explored[gone][1] == col-1 || explored[gone][1] == col+1)){
+						//add new wall to wall list
+						walls++;
+						foundwalls[walls][0] = row-1;
+						foundwalls[walls][1] = col;
+						n = 0;
+					}
+				}
 			}
 		}
-	}
+		//check south
+		if(row >= maze_rows-2 || total_maze[row+1][col] > 0 ){
+			s = 0;
+		}
+		//check east
+		if(col >= maze_cols-2 || total_maze[row][col+1] > 0 ){
+			e = 0;
+		}
+		//check west
+		if(col <= 1 || total_maze[row][col-1] > 0 ){
+			w = 0;
+		}
+		
+		//set to true to roll at least once
+		int roll = 1;
+		
+		avail = n+s+e+w;
+		
+		//check if no path
+		if(avail == 0){
+			printf("Go back! No forward!\n");
+			roll = 0;
+		}
+	
+		//keep generating random int until valid direction chosen
+
+		while(roll){ //repeat until true
+		
+			r = (rand() % 4) + 1; //do not include 0, so add one
+	
+			if(r == n) { //go north
+				row -= 1;
+				roll = 0;
+			}
+			else if(r == s){ //go south
+				row += 1;
+				roll = 0;
+			}
+			else if(r = e){ //go east
+				col += 1;
+				roll = 0;
+			}
+			else if(r = w){ //go west
+				col -= 1;
+				roll = 0;
+			}
+		}
+		printf("%d: Available: n %d s %d e %d w %d, rand = %d\n",tr, n, s, e, w, r);
+	
+		printf("Went to: %d, %d\n", row, col);
+		tr++;
+	
+	}//end for loop
+	
+	//make last a blank
+	total_maze[row][col] += 1;
 	
 	
 	//print blank maze to command line
@@ -115,14 +228,14 @@ main(int argc, char* argv[]) {
 	
 	//only root process prints full maze - done
 	
-	//*
+	/*
 	  
 	if(my_rank == 0){
 		char *outputName = "testPicture.PGM";
 		writePGM( outputName, total_maze );
 	}
 	
-	//*/
+	*/
 	
 	//Outline Code
 	
@@ -140,6 +253,8 @@ main(int argc, char* argv[]) {
 	
 	// Free Memory
 	deallocate_dynamic_matrix(total_maze, maze_rows);
+	deallocate_stack(explored, maze_cols*maze_rows);
+	deallocate_stack(foundwalls, maze_cols*maze_rows);
 }
 
 // write the PGM
@@ -172,10 +287,10 @@ void writePGM( char *filename, unsigned char **total_maze)
 				
 				//print black or white if space is filled or empty
                 if(place == 0){
-					fprintf(pgmFile, "%d ", 255);
+					fprintf(pgmFile, "%d ", 0);
 				}
                 else {
-					fprintf(pgmFile, "  %d ", 0);
+					fprintf(pgmFile, "  %d ", 1);
 				}
 		}
 			//insert endline for next loop
@@ -199,7 +314,7 @@ void printMatrix(unsigned char **total_maze){
 }
 
 // allocate memory for matrix
-unsigned char **allocate_dynamic_matrix(int row, int col)
+unsigned char **allocate_maze(int row, int col)
 {
 	int i; //for loop
 	
@@ -215,12 +330,43 @@ unsigned char **allocate_dynamic_matrix(int row, int col)
     return ret_val;
 }
 
-//free memory
+// allocate stack array
+int **allocate_stack(int num)
+{
+	int i; //for loop
+	
+	//allocate the whole size based on dimensions
+    int **ret_val = (int **)malloc(sizeof(int *)*num);
+	
+	//fill with allocated cols set to zero
+    for (i = 0; i < num; i++) {
+        ret_val[i] = (int *)calloc(2, sizeof(int));
+    }
+    
+    // return double pointer to (x,y) of stack
+    return ret_val;
+}
+
+//free maze memory
 void deallocate_dynamic_matrix(unsigned char **matrix, int row)
 {
 	int i; // for loop
 	
 	//free each col
+    for (i = 0; i < row; ++i){
+        free(matrix[i]);
+	}
+	
+	//free whole thing
+    free(matrix);
+}
+
+//free explored stack memory
+void deallocate_stack(int **matrix, int row)
+{
+	int i; // for loop
+	
+	//free each
     for (i = 0; i < row; ++i){
         free(matrix[i]);
 	}
