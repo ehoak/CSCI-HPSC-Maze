@@ -72,8 +72,8 @@ main(int argc, char* argv[]) {
 	//set maze dimentions
 	// (Note: there is a max size in order to view the PGM,
 	// 		but program runs for all sizes)
-	maze_cols = 10;
-	maze_rows = 10;
+	maze_cols = 15;
+	maze_rows = 15;
  
 	//set start and end
 	start_c = 1;
@@ -89,7 +89,9 @@ main(int argc, char* argv[]) {
 	// Allocate maze in unsigned chars
 	unsigned char **total_maze = allocate_maze(maze_rows, maze_cols);
 	
-	//allocate "explored" stack
+	//allocate "explored" stack - ****
+	//Change to be places where a desicion occurred,
+	// so can retest that when backtracking
 	int **explored = allocate_stack(maze_cols*maze_rows);
 	int exp = 0; //number of explored squares
 	
@@ -145,8 +147,6 @@ main(int argc, char* argv[]) {
 			//check walls to see if bordering known wall
 			for( gone = 0; gone < walls; gone++){
 				if(foundwalls[gone][0] == row-1 && (foundwalls[gone][1] == col-1 || foundwalls[gone][1] == col+1)){
-
-					
 					n = 0;	
 				}
 			}
@@ -155,22 +155,50 @@ main(int argc, char* argv[]) {
 			if(n != 0){
 				//check diagonals to make sure is really valed, to keep walls intact
 				//for( gone = 0; gone < exp; gone++){
-					if(total_maze[row-1][col-1] > 0 || total_maze[row-1][col+1] > 0){
+					if(total_maze[row-1][col-1] == 1 || total_maze[row-1][col+1] == 1){
 					
 					//if(explored[gone][0] == row-1 && (explored[gone][1] == col-1 || explored[gone][1] == col+1)){
 						//add new wall to wall list
 						walls++;
 						foundwalls[walls][0] = row-1;
 						foundwalls[walls][1] = col;
+						
+						total_maze[row-1][col] += 5; //*** add to show wall
+						
 						n = 0;
 					}
 				//}
 			}
-		}
+		}// end north
+		
+		
 		//check south
 		if(row >= maze_rows-2 || total_maze[row+1][col] > 0 ){
 			s = 0;
 		}
+		else{ //check if bordering wall
+			for( gone = 0; gone < walls; gone++){
+				if(foundwalls[gone][0] == row+1 && (foundwalls[gone][1] == col-1 || foundwalls[gone][1] == col+1)){
+					s = 0;
+				}
+			}
+			
+			//add wall if corner
+			if(s != 0){
+				//check diagonals
+				if(total_maze[row+1][col-1] == 1 || total_maze[row+1][col+1] == 1){
+					//add new wall to wall list
+					walls++;
+					foundwalls[walls][0] = row+1;
+					foundwalls[walls][1] = col;
+					
+					total_maze[row+1][col] += 5; //*** add to show wall
+					
+					s = 0;
+				}
+			}
+		}
+		
 		//check east
 		if(col >= maze_cols-2 || total_maze[row][col+1] > 0 ){
 			e = 0;
@@ -222,7 +250,7 @@ main(int argc, char* argv[]) {
 	}//end for loop
 	
 	//make last a blank
-	total_maze[row][col] += 1;
+	total_maze[row][col] == 1;
 	
 	
 	//print blank maze to command line
