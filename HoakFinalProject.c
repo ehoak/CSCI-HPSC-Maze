@@ -154,15 +154,17 @@ main(int argc, char* argv[]) {
 			//see if condition still not false, then add wall if needed
 			if(n != 0){
 				//check diagonals to make sure is really valed, to keep walls intact
-				for( gone = 0; gone < exp; gone++){
-					if(explored[gone][0] == row-1 && (explored[gone][1] == col-1 || explored[gone][1] == col+1)){
+				//for( gone = 0; gone < exp; gone++){
+					if(total_maze[row-1][col-1] > 0 || total_maze[row-1][col+1] > 0){
+					
+					//if(explored[gone][0] == row-1 && (explored[gone][1] == col-1 || explored[gone][1] == col+1)){
 						//add new wall to wall list
 						walls++;
 						foundwalls[walls][0] = row-1;
 						foundwalls[walls][1] = col;
 						n = 0;
 					}
-				}
+				//}
 			}
 		}
 		//check south
