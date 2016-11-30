@@ -72,8 +72,10 @@ main(int argc, char* argv[]) {
 	//set maze dimentions
 	// (Note: there is a max size in order to view the PGM,
 	// 		but program runs for all sizes)
-	maze_cols = 15;
-	maze_rows = 15;
+	maze_cols = 10;
+	maze_rows = 10;
+	
+	//**** Something is erronious with non-square worlds
  
 	//set start and end
 	start_c = 1;
@@ -203,10 +205,57 @@ main(int argc, char* argv[]) {
 		if(col >= maze_cols-2 || total_maze[row][col+1] > 0 ){
 			e = 0;
 		}
+		else{ //check if bordering wall
+			for( gone = 0; gone < walls; gone++){
+				if(foundwalls[gone][0] == col+1 && (foundwalls[gone][1] == row-1 || foundwalls[gone][1] == row+1)){
+					e = 0;
+				}
+			}
+			
+			//add wall if corner
+			if(e != 0){
+				//check diagonals
+				if(total_maze[row+1][col+1] == 1 || total_maze[row-1][col+1] == 1){
+					//add new wall to wall list
+					walls++;
+					foundwalls[walls][0] = row;
+					foundwalls[walls][1] = col+1;
+					
+					total_maze[row][col+1] += 3; //*** add to show wall
+					
+					e = 0;
+				}
+			}
+		} // end east
+		
+		//****east or west has something on the wrong side
+		
 		//check west
 		if(col <= 1 || total_maze[row][col-1] > 0 ){
 			w = 0;
 		}
+		else{ //check if bordering wall
+			for( gone = 0; gone < walls; gone++){
+				if(foundwalls[gone][0] == col-1 && (foundwalls[gone][1] == row-1 || foundwalls[gone][1] == row+1)){
+					w = 0;
+				}
+			}
+			
+			//add wall if corner
+			if(w != 0){
+				//check diagonals
+				if(total_maze[row+1][col-1] == 1 || total_maze[row-1][col-1] == 1){
+					//add new wall to wall list
+					walls++;
+					foundwalls[walls][0] = row;
+					foundwalls[walls][1] = col-1;
+					
+					total_maze[row][col-1] += 4; //*** add to show wall
+					
+					w = 0;
+				}
+			}
+		}//end west
 		
 		//set to true to roll at least once
 		int roll = 1;
@@ -258,14 +307,14 @@ main(int argc, char* argv[]) {
 	
 	//only root process prints full maze - done
 	
-	/*
+	
 	  
 	if(my_rank == 0){
 		char *outputName = "testPicture.PGM";
 		writePGM( outputName, total_maze );
 	}
 	
-	*/
+	
 	
 	//Outline Code
 	
@@ -316,11 +365,11 @@ void writePGM( char *filename, unsigned char **total_maze)
 				place = total_maze[i][j];
 				
 				//print black or white if space is filled or empty
-                if(place == 0){
-					fprintf(pgmFile, "%d ", 0);
+                if(place == 1){
+					fprintf(pgmFile, "%d ", 255);
 				}
                 else {
-					fprintf(pgmFile, "  %d ", 1);
+					fprintf(pgmFile, "  %d ", 0);
 				}
 		}
 			//insert endline for next loop
